@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "437609761245",
+    "project_id": "eagle-rides-driver",
+    "storage_bucket": "eagle-rides-driver.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:437609761245:android:57e88c8e01be9b22808e34",
+        "android_client_info": {
+          "package_name": "Com.eagle.driver"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "437609761245-amlm8qns4erknccfvq5kffqldon6km08.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "Com.eagle.driver",
+            "certificate_hash": "1aec42be93d2f94fb095c0d03e562b19280b108b"
+          }
+        },
+        {
+          "client_id": "437609761245-hmgjnhvede0bashg387ogss9dcutocj2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD49uRizy0KNKRdZVWB1G1jAFTSd6R4Sc4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "437609761245-hmgjnhvede0bashg387ogss9dcutocj2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "437609761245-b4mjk2cdqrj4tjpu4jit1eii9p3dp3cl.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "Com.eagle.driver"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

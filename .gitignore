@@ -1,0 +1,43 @@
+# Claude history
+.claude/
+
+# Markdown files
+*.md
+
+# Firebase debug logs
+firebase-debug.log
+*.log
+
+# Temporary files
+nul
+
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+*.iml
+.idea/
+pubspec.lock
+
+# Firebase functions
+firebase/functions/node_modules/
+firebase/functions/lib/
+
+# OS files
+.DS_Store
+Thumbs.db
+__MACOSX/
+._*
+
+# IDE
+.vscode/
+*.swp
+*.swo
+
+# Gradle
+.gradle/
+local.properties
+
+# Generated files
+*.g.dart
+*.freezed.dart

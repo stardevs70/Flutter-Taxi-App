@@ -1,0 +1,239 @@
+// Firestore Security Rules for Eagle Rides
+// Section 11 of Development Plan: Security rules (must not be skipped)
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================
+    // Helper Functions
+    // ============================================
+
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Get user ID from auth token
+    function userId() {
+      return request.auth.uid;
+    }
+
+    // Check if user is a driver
+    function isDriver() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/drivers/$(userId()));
+    }
+
+    // Check if user is a rider
+    function isRider() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/riders/$(userId()));
+    }
+
+    // Check if user is admin
+    function isAdmin() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/admins/$(userId())).data.role == 'admin';
+    }
+
+    // Check if this is a server/Cloud Function request
+    function isServer() {
+      return request.auth.token.admin == true;
+    }
+
+    // ============================================
+    // Drivers Collection
+    // ============================================
+    match /drivers/{driverId} {
+      // Drivers can read their own profile
+      allow read: if isAuthenticated() && (userId() == driverId || isAdmin());
+
+      // Drivers can update limited fields only
+      allow update: if isAuthenticated() && userId() == driverId &&
+        // Cannot update critical fields directly
+        !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['documents_verified', 'active', 'rating']);
+
+      // Only admins/server can create drivers
+      allow create: if isServer() || isAdmin();
+
+      // Only admins can delete
+      allow delete: if isAdmin();
+    }
+
+    // ============================================
+    // Trips Collection
+    // ============================================
+    match /trips/{tripId} {
+      // Allow read if user is involved in the trip
+      allow read: if isAuthenticated() &&
+        (resource.data.rider_id == userId() ||
+         resource.data.accepted_by == userId() ||
+         isAdmin());
+
+      // CRITICAL: Clients cannot write to critical fields
+      // Only Cloud Functions can update these fields:
+      // - status, accepted_by, accepted_at, arrived_at, started_at, completed_at
+      // - final.*, admin_override
+      allow create: if isServer();
+
+      allow update: if isServer() || (
+        isAuthenticated() &&
+        // Only allow non-critical field updates
+        !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny([
+            'status',
+            'accepted_by',
+            'accepted_at',
+            'arrived_at',
+            'started_at',
+            'completed_at',
+            'canceled_by',
+            'cancel_reason',
+            'admin_override',
+            'final'
+          ])
+      );
+
+      allow delete: if isAdmin();
+
+      // Trip Track subcollection - for GPS breadcrumbs
+      match /track/{pointId} {
+        // Only the assigned driver can add track points
+        allow read: if isAuthenticated() &&
+          (get(/databases/$(database)/documents/trips/$(tripId)).data.accepted_by == userId() ||
+           get(/databases/$(database)/documents/trips/$(tripId)).data.rider_id == userId() ||
+           isAdmin());
+
+        allow create: if isAuthenticated() &&
+          get(/databases/$(database)/documents/trips/$(tripId)).data.accepted_by == userId();
+
+        allow update, delete: if false; // Track points are immutable
+      }
+
+      // Extensions subcollection
+      match /extensions/{extensionId} {
+        allow read: if isAuthenticated() &&
+          (get(/databases/$(database)/documents/trips/$(tripId)).data.accepted_by == userId() ||
+           get(/databases/$(database)/documents/trips/$(tripId)).data.rider_id == userId());
+
+        // Riders and drivers can create extension requests
+        allow create: if isAuthenticated() &&
+          (get(/databases/$(database)/documents/trips/$(tripId)).data.accepted_by == userId() ||
+           get(/databases/$(database)/documents/trips/$(tripId)).data.rider_id == userId());
+
+        // Only server can update extension status
+        allow update: if isServer();
+
+        allow delete: if false;
+      }
+    }
+
+    // ============================================
+    // Trip Requests (Offers) Collection
+    // ============================================
+    match /trip_requests/{tripId} {
+      allow read: if isAuthenticated();
+      allow write: if isServer();
+
+      // Offers subcollection
+      match /offers/{driverId} {
+        // Drivers can read offers addressed to them
+        allow read: if isAuthenticated() &&
+          (userId() == driverId || isAdmin());
+
+        // Only server creates offers
+        allow create: if isServer();
+
+        // Drivers can update their offer status (accept/reject)
+        // But actual trip acceptance is handled by Cloud Function
+        allow update: if isServer() || (
+          isAuthenticated() &&
+          userId() == driverId &&
+          // Can only update to REJECTED status directly
+          request.resource.data.status == 'REJECTED'
+        );
+
+        allow delete: if false;
+      }
+    }
+
+    // ============================================
+    // Trip Events (Audit Log) Collection
+    // ============================================
+    match /trip_events/{tripId} {
+      allow read: if isAdmin();
+      allow write: if isServer();
+
+      match /events/{eventId} {
+        allow read: if isAdmin();
+        allow create: if isServer();
+        allow update, delete: if false; // Events are immutable
+      }
+    }
+
+    // ============================================
+    // Pricing Collection
+    // ============================================
+    match /pricing/{docId} {
+      // Anyone authenticated can read pricing
+      allow read: if isAuthenticated();
+
+      // Only admins can update pricing
+      allow write: if isAdmin();
+
+      match /vehicle_types/{vehicleType} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+    }
+
+    // ============================================
+    // Riders Collection
+    // ============================================
+    match /riders/{riderId} {
+      allow read: if isAuthenticated() && (userId() == riderId || isAdmin());
+      allow write: if isAuthenticated() && userId() == riderId;
+    }
+
+    // ============================================
+    // Chat Collections
+    // ============================================
+    match /RideTalk/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /RideTalkHistory/{tripId} {
+      allow read: if isAuthenticated();
+
+      match /messages/{messageId} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
+    // ============================================
+    // Users Collection (general)
+    // ============================================
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ============================================
+    // Admins Collection
+    // ============================================
+    match /admins/{adminId} {
+      allow read: if isAuthenticated() && userId() == adminId;
+      allow write: if false; // Only through console/server
+    }
+
+    // ============================================
+    // App Settings (read-only for clients)
+    // ============================================
+    match /settings/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+  }
+}

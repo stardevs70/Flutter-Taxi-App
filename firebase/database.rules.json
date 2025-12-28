@@ -1,0 +1,51 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "drivers_locations": {
+      "$driverId": {
+        ".read": true,
+        ".write": "$driverId === auth.uid",
+        ".validate": "newData.hasChildren(['lat', 'lng', 'updated_at'])",
+
+        "lat": {
+          ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90"
+        },
+        "lng": {
+          ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+        },
+        "heading": {
+          ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0 && newData.val() <= 360)"
+        },
+        "updated_at": {
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+
+    "active_trips": {
+      "$tripId": {
+        ".read": "auth != null",
+        ".write": false,
+
+        "driver_location": {
+          "lat": { ".validate": "newData.isNumber()" },
+          "lng": { ".validate": "newData.isNumber()" },
+          "heading": { ".validate": "newData.isNumber()" },
+          "updated_at": { ".validate": "newData.isNumber()" }
+        }
+      }
+    },
+
+    "dispatch_status": {
+      "$tripId": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    }
+  }
+}
